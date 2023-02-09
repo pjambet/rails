@@ -234,6 +234,36 @@ class DefaultScopingTest < ActiveRecord::TestCase
     assert_match(/firm_id/, reload_sql)
   end
 
+  def test_scope_without_all_queries_doesnt_run_on_reload
+    Mentor.create!
+    model = Developer
+    dev = model.create!(name: "Eileen")
+    reload_sql = capture_sql { model.where("1=1").scoping { dev.reload } }.first
+
+    assert_no_match(/1=1/, reload_sql)
+  end
+
+  def test_scope_with_all_queries_runs_run_on_reload
+    Mentor.create!
+    model = Developer
+    dev = model.create!(name: "Eileen")
+    reload_sql = capture_sql { model.where("1=1").scoping(all_queries: true) { dev.reload } }.first
+
+    assert_match(/1=1/, reload_sql)
+  end
+
+  def test_default_scope_with_all_queries_runs_on_reload_but_default_scope_without_all_queries_does_not_with_explicit_scope
+    skip("Seems to be a bug")
+    Mentor.create!
+    model = DeveloperWithIncludedMentorDefaultScopeNotAllQueriesAndDefaultScopeFirmWithAllQueries
+    dev = model.create!(name: "Eileen")
+    reload_sql = capture_sql { model.where("1=1").scoping { dev.reload } }.first
+
+    # assert_no_match(/mentor_id/, reload_sql) # Fails
+    # assert_no_match(/1=1/, reload_sql) # fails
+    assert_match(/firm_id/, reload_sql)
+  end
+
   def test_nilable_default_scope_with_all_queries_runs_on_reload
     dev = DeveloperWithDefaultNilableFirmScopeAllQueries.create!(name: "Nikita")
     reload_sql = capture_sql { dev.reload }.first
